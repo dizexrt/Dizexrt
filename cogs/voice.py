@@ -16,12 +16,5 @@ class MusicCommand(commands.Cog):
 	async def music_search(self, ctx, query:str):
 		await ctx.alert(query)
 
-	@commands.command()
-	async def file(self, ctx):
-		
-		if len(ctx.message.attachments) > 0:
-			for file in ctx.message.attachments:
-				await ctx.send(file.filename.split('.')[1])
-
 def setup(client):
     client.add_cog(MusicCommand(client))

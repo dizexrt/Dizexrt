@@ -7,9 +7,8 @@ class Message(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_message(self, message):
-
-		if len(message.attachments) > 0:
-			await self.client.file_manager.recognizes(message)
+		
+		await self.client.tools.recognizes(message)
 
 def setup(client):
 

@@ -1,8 +1,8 @@
-import discord
 import os
-from discord.ext.commands import Bot, Context
+import discord
+from discord.ext import commands
 from .voices import Voice
-from .devtools import FileManager
+from .devtools import MessageTools
 
 def alert(message):
     embed = discord.Embed()
@@ -10,21 +10,21 @@ def alert(message):
     embed.description = message
     return embed
 
-class AlertContext(Context):
+class AlertContext(commands.Context):
 
     async def alert(self, message):
         embed = alert(message)
         return await self.send(embed = embed)
 
-class MyClient(Bot):
+class MyClient(commands.Bot):
 
 	def __init__(self):
 		options = {}
 		options['intents'] = discord.Intents.all()
-		prefix = '-'
+		prefix = commands.when_mentioned_or('-')
 		super().__init__(command_prefix=prefix, **options)
 		self.voice = Voice(self)
-		self.file_manager = FileManager(self)
+		self.tools = MessageTools(self)
 
 	async def get_context(self, message, *, cls=AlertContext):
 		return await super().get_context(message, cls=cls)
