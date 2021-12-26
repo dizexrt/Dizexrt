@@ -1,3 +1,4 @@
+from PIL import Image
 import discord
 
 class FileManager:
@@ -22,7 +23,12 @@ class FileManager:
 		if len(custom) == 0: return
 
 		for emoji in custom:
-			await guild.create_custom_emoji(name = emoji, image = f'dizexrt/emojis/{emoji}.png')
+			path = f'dizexrt/emojis/{emoji}.png'
+			
+			with open(path, "rb") as imageFile:
+				image = imageFile.read()
+
+			await guild.create_custom_emoji(name = emoji, image = image)
 
 	async def recognizes(self, message:discord.Message):
 		await self.get_emoji(message.guild)
