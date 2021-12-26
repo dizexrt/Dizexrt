@@ -2,6 +2,7 @@ import discord
 import os
 from discord.ext.commands import Bot, Context
 from .voices import Voice
+from .devtools import FileManager
 
 def alert(message):
     embed = discord.Embed()
@@ -17,21 +18,23 @@ class AlertContext(Context):
 
 class MyClient(Bot):
 
-    def __init__(self):
-        options = {}
-        options['intents'] = discord.Intents.all()
-        prefix = '-'
-        super().__init__(command_prefix=prefix, **options)
-        self.voice = Voice(self)
+	def __init__(self):
+		options = {}
+		options['intents'] = discord.Intents.all()
+		prefix = '-'
+		super().__init__(command_prefix=prefix, **options)
+		self.voice = Voice(self)
+		self.file_manager = FileManager(self)
 
-    async def get_context(self, message, *, cls=AlertContext):
-        return await super().get_context(message, cls=cls)
+	async def get_context(self, message, *, cls=AlertContext):
+		return await super().get_context(message, cls=cls)
 
-    def load_extension_folder(self, folder_name:str):
-        for file in os.listdir(folder_name):
-            if file.endswith('.py'):
-                self.load_extension(f'{folder_name}.{file[:-3]}')
+	def load_extension_folder(self, folder_name:str):
+		for file in os.listdir(folder_name):
+			if file.endswith('.py'):
+				self.load_extension(f'{folder_name}.{file[:-3]}')
 
-    async def on_ready(self):
-        print(f"Loged in as {self.user}")
-        
+	async def on_ready(self):
+	 	print(f"Loged in as {self.user}")
+
+			
