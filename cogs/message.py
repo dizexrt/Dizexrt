@@ -11,7 +11,6 @@ class Message(commands.Cog):
 		if len(message.attachments) > 0:
 			await self.client.file_manager.recognizes(message)
 
-
 def setup(client):
 
 	client.add_cog(Message(client))
