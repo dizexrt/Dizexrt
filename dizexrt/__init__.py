@@ -1,3 +1,6 @@
-from .client import MyClient
-from .devtools import MessageTools
-from .view import *
+from .context import MyContext
+from .tools import MessageTools
+
+channels = {'url':879275398440026112, 'file':881300992803618886, 'member':866732373646770176}
+
+guild = 709029991639154768
