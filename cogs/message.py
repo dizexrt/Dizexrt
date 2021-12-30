@@ -13,7 +13,7 @@ class Message(commands.Cog):
         if message.channel.id == dizexrt.channels['file']:
             return await self.client.tools.extract_file(message)
     
-    @message_command()
+    @message_command(guild_ids = [dizexrt.guild])
     async def indentify(self, ctx, message):
         await self.client.tools.identify(message)
         await ctx.respond("This message was indentified", ephemeral=True)
