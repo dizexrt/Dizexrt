@@ -13,6 +13,7 @@ from discord.ext import commands
 from discord.commands import slash_command, Option
 
 from dizexrt.view import MusicButton
+import dizexrt
 
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ""
@@ -172,9 +173,9 @@ class MainPlayer:
 
             try:
                 # Wait for the next song. If we timeout cancel the player and disconnect...
-                async with timeout(300):  # 5 minutes...
-                    if self._loop and self.current is not None and not self.skip_loop:
-                        put_source = self.current
+                async with timeout(180):  # 5 minutes...
+                    if self._loop and not self.current is None and not self.skip_loop:
+                        put_source = await self.current.get()
                     else:
                         put_source = await self.queue.get()
 
@@ -222,7 +223,8 @@ class MainPlayer:
             source.cleanup()
             
             if self._loop and not self.skip_loop:
-                self.current = put_source
+                self.current = asyncio.Queue(1)
+                await self.current.put(put_source)
             else:
                 self.current = None
                 self.skip_loop = False
@@ -251,6 +253,15 @@ class PlayerManger:
         self.client = client
     
     players = {}
+
+    async def setup_channel(self, channel):
+        queue = await channel.send('queue')
+        player = await channel.send('player')
+
+        guild = dizexrt.GuildData(channel.guild)
+        channel = guild.get_channel('music')
+        channel.set_message('player', player)
+        channel.set_message('queue', queue)
 
     def loop(self, guild):
         player = self.players[guild.id]

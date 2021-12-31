@@ -28,7 +28,7 @@ class MyClient(commands.Bot):
         for package in packages:self.load_extension(package) 
     
     def run(self):
-        token = os.environ['token']
+        token = os.environ['saiimaih']
         return super().run(token)
 
     def run_env(self):

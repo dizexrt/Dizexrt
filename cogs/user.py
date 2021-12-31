@@ -20,7 +20,7 @@ class UserCommand(commands.Cog):
         except:
             return await ctx.respond(f'ไม่มีสิทธิ์ส่งคำว่ารักให้ไปถึง {user.name}', ephemeral=True)
         else:
-            return await ctx.respond(f'กำลังพยายามส่งคำว่ารักไปถึง {user.name} แต่เขาไม่รู้หรอกว่าใครส่งไป ไม่ต้องห่วง', ephemeral=True)
+            return await ctx.respond(f'กระซิบคำว่ารักไปถึง `{user.name}` แล้ว', ephemeral=True)
 
 def setup(client):
     client.add_cog(UserCommand(client))

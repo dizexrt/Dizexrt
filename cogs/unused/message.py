@@ -9,7 +9,7 @@ class Message(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-
+        
         if message.channel.id == dizexrt.channels['file']:
             return await self.client.tools.extract_file(message)
     

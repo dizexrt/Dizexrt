@@ -82,7 +82,8 @@ class MusicButton(discord.ui.View):
             self.children[2].style = discord.ButtonStyle.success if loop else discord.ButtonStyle.gray
             self.children[3].style = discord.ButtonStyle.gray if loop else self.children[3].style
             await interaction.message.edit(view = self)
-            return await interaction.response.send_message(f"`{interaction.user.display_name}` has looped current song")
+            switch = 'on' if loop else 'off'
+            return await interaction.response.send_message(f"`{interaction.user.display_name}` has turned {switch} loop current song")
 
     @discord.ui.button(emoji = '🔁', custom_id = 'music:loop_all', style = discord.ButtonStyle.secondary)
     async def loop_all_music(self, button, interaction:discord.Interaction):
@@ -101,7 +102,8 @@ class MusicButton(discord.ui.View):
             self.children[3].style = discord.ButtonStyle.success if loop else discord.ButtonStyle.gray
             self.children[2].style = discord.ButtonStyle.gray if loop else self.children[2].style
             await interaction.message.edit(view = self)
-            return await interaction.response.send_message(f"`{interaction.user.display_name}` has looped all song.")
+            switch = 'on' if loop else 'off'
+            return await interaction.response.send_message(f"`{interaction.user.display_name}` has turned {switch} loop all song.")
     
     @discord.ui.button(label = 'queue', custom_id = 'music:Queue', style = discord.ButtonStyle.primary, row = 1)
     async def url_music(self, button, interaction:discord.Interaction):
