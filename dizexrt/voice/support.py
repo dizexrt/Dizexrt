@@ -136,7 +136,7 @@ class Queue:
         await self.message.edit(embed = self.queue.update(), view = QueueButton(self.queue, self))
     
     async def empty(self):
-        await self.message.edit(embed = self.queue.default(), view = QueueButton(self.queue, self))
+        await self.message.edit(content = '', embed = self.queue.default(), view = QueueButton(self.queue, self))
 
 class PlayerEmbed(discord.Embed):
 
@@ -257,4 +257,4 @@ class Player:
         await self.message.edit(embed = self.player.extract_source(source), view = PlayerButton(self, self.client, self.guild, loop, loop_all, source))
     
     async def empty(self):
-        await self.message.edit(embed = self.player.extract_default(self.guild), view = PlayerButton(self, self.client, self.guild, False, False))
+        await self.message.edit(content = '',embed = self.player.extract_default(self.guild), view = PlayerButton(self, self.client, self.guild, False, False))

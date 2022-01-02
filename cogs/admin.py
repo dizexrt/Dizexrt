@@ -10,7 +10,7 @@ class Setup(commands.Cog):
 
     setup = SlashCommandGroup('setup', 'setup function')
 
-    setup_channel_choices = ["music", 'file']
+    setup_channel_choices = ["music"]
     setup_channel_option = Option(str, "Choose type of channel that you want to create", choices=setup_channel_choices)
     setup_channel_id = Option(discord.TextChannel, "If you want to create new channel you don't have to select this.", required = False, default = None)
     @setup.command(description = 'Create channel')
