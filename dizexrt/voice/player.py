@@ -18,7 +18,6 @@ import dizexrt
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ""
 
-
 ytdl_format_options = {
     "format": "bestaudio/best",
     "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
@@ -111,8 +110,6 @@ class Source(discord.PCMVolumeTransformer):
             path = f'{cls.path}/{cls.sources[index-1]}'
             await ctx.respond(f"**Now Start Talking** in {ctx.voice_client.channel.mention}")
             return LocalSourceInfo(path, ctx.author)
-
-        await ctx.respond("There is no sound in this number")
         return None
 
     @classmethod
@@ -142,13 +139,38 @@ class MainPlayer:
         self.volume = 0.5
 
         self.np = None
-        self.current = None
+        self.current = asyncio.Queue(1)
+        self.channel = None
 
         self.skip_loop = False
         self._loop = False
         self._loop_all = False
 
         ctx.bot.loop.create_task(self.player_loop())
+    
+    @property
+    def music_channel(self):
+        id = dizexrt.db.get(self._guild, 'music:channel')
+        if id is not None:
+            try:
+                channel = self._guild.get_channel(id)
+            except:
+                return None
+            else:
+                return channel
+        return None
+
+    async def player(self):
+        if self.music_channel is None:return None
+        message = await self.music_channel.fetch_message(dizexrt.db.get(self._guild, 'music:player'))
+        player = dizexrt.voice.Player(self.bot, message)
+        return player
+    
+    async def update_queue(self):
+        if self.music_channel is None:return
+        _queue = await self.music_channel.fetch_message(dizexrt.db.get(self._guild, 'music:queue'))
+        queue = dizexrt.voice.Queue(self.bot, _queue)
+        await queue.update()
 
     def loop(self):
         self._loop = not self._loop
@@ -174,7 +196,7 @@ class MainPlayer:
             try:
                 # Wait for the next song. If we timeout cancel the player and disconnect...
                 async with timeout(180):  # 5 minutes...
-                    if self._loop and not self.current is None and not self.skip_loop:
+                    if self._loop and not self.current.empty() and not self.skip_loop:
                         put_source = await self.current.get()
                     else:
                         put_source = await self.queue.get()
@@ -191,6 +213,11 @@ class MainPlayer:
                     await self._channel.send(f'There was an error processing your song.\n'
                                              f'```css\n[{e}]\n```')
                     continue
+               
+                try:
+                    await self.update_queue()
+                except:
+                    pass
             elif isinstance(put_source, LocalSourceInfo):
                 self._loop = False
                 self.skip_loop = False
@@ -200,13 +227,14 @@ class MainPlayer:
                 except Exception as e:
                     await self._channel.send(f'There was an error processing your song.\n'
                                              f'```py\n[{e}]\n```')
+                    await put_source.destroy()
                     continue
+                    
             else:continue
 
             source.volume = self.volume
 
             if self._guild.voice_client is None:
-                await self._channel.send("Bot voice is error")
                 return await self.destroy(self._guild)
 
             try:
@@ -217,21 +245,35 @@ class MainPlayer:
                 continue
 
             if isinstance(source, YTDLSource):
-                self.np = await self._channel.send(embed = player_embed(source), view = MusicButton(self.bot, source.url, timeout = source.duration+10, loop = self._loop, loop_all = self._loop_all))
+                view = MusicButton(self.bot, source.url, timeout = source.duration+10, loop = self._loop, loop_all = self._loop_all)
+                if self.music_channel is None:
+                    self.np = await self._channel.send(embed = player_embed(source), view = view)
+                else:
+                    player = await self.player()
+                    await player.update(source, self._loop, self._loop_all)
+                    await self.update_queue()
             await self.next.wait()
 
             source.cleanup()
+
+            if isinstance(put_source, LocalSourceInfo):
+                try:
+                    await put_source.destroy()
+                except:
+                    pass
             
             if self._loop and not self.skip_loop:
-                self.current = asyncio.Queue(1)
                 await self.current.put(put_source)
             else:
-                self.current = None
+                self.current = asyncio.Queue(1)
                 self.skip_loop = False
 
             try:
-                # We are no longer playing this song...
-                await self.np.delete()
+                if self.music_channel is None:
+                    await self.np.delete()
+                else:
+                    player = await self.player()
+                    await player.empty()
             except:
                 pass
             
@@ -241,11 +283,18 @@ class MainPlayer:
     async def destroy(self, guild):
         try:
             await self.np.delete()
-            await self._guild.voice_client.disconnect()
+        except:
+            pass
+
+        try:
+            await self.update_queue()
         except:
             pass
         
-        return self.bot.loop.create_task(self._cog.cleanup(guild))
+        try:
+            self.bot.loop.create_task(self._cog.cleanup(guild))
+        except:
+            pass
 
 class PlayerManger:
 
@@ -256,12 +305,57 @@ class PlayerManger:
 
     async def setup_channel(self, channel):
         queue = await channel.send('queue')
-        player = await channel.send('player')
+        player = await channel.send('hello')
+        dizexrt.db.set(channel.guild, 'music:player', player.id)
+        dizexrt.db.set(channel.guild, 'music:queue', queue.id)
+        await dizexrt.voice.Queue(self.client, queue).empty()
+        await dizexrt.voice.Player(self.client, player).empty()
+        self.client.add_message_task(self.on_setup, channel.guild)
+    
+    @staticmethod
+    async def on_setup(client, message):
 
-        guild = dizexrt.GuildData(channel.guild)
-        channel = guild.get_channel('music')
-        channel.set_message('player', player)
-        channel.set_message('queue', queue)
+        async def ensure_voice(ctx):
+
+            if ctx.author.voice is None:
+                await ctx.send("You are not connected to a voice channel.")
+                raise commands.CommandError("Author voice is none")
+                return
+
+            if ctx.voice_client is None:
+                return await ctx.author.voice.channel.connect()
+            
+            if len(ctx.voice_client.channel.members) == 1:
+                return await ctx.voice_client.move_to(ctx.author.voice.channel)
+            
+            if ctx.voice_client.channel != ctx.author.voice.channel:
+                await ctx.send("Bot is already in voice channel with other.")
+                raise commands.CommandError("Author is not in client channel")
+                return
+        
+        try:
+            music_channel = await message.guild.fetch_channel(dizexrt.db.get(message.guild, 'music:channel'))
+        except:
+            music_channel = None
+        
+        if message.channel == music_channel:
+            if message.author.bot:return await message.edit(delete_after = 3)
+            ctx = await client.get_context(message)
+            await ensure_voice(ctx)
+            await client.voice.play(ctx, message.content)
+            return await message.delete()
+    
+    async def cleanup_channel(self):
+        for guild in self.client.guilds:
+            try:
+                channel = await guild.fetch_channel(dizexrt.db.get(guild, 'music:channel'))
+            except:
+                continue
+            player = await channel.fetch_message(dizexrt.db.get(guild, 'music:player'))
+            queue = await channel.fetch_message(dizexrt.db.get(guild, 'music:queue'))
+            await dizexrt.voice.Queue(self.client, queue).empty()
+            await dizexrt.voice.Player(self.client, player).empty()
+            self.client.add_message_task(self.on_setup, guild)
 
     def loop(self, guild):
         player = self.players[guild.id]
@@ -272,8 +366,11 @@ class PlayerManger:
         return player.loop_all()
 
     def get_queue(self, guild):
-        player = self.players[guild.id]
-        return player.queue_list
+        try:
+            queue = self.players[guild.id].queue_list
+        except:
+            queue = None
+        return queue
 
     def get_player(self, ctx):
         try:
@@ -287,8 +384,10 @@ class PlayerManger:
     async def play_source(self, ctx, index):
         player = self.get_player(ctx)
         source = await Source.local(ctx, index)
-        if source is not None:
-            await player.queue.put(source)
+        if source is None:
+            return await ctx.respond("There is no sound in this number", delete_after = 5)
+        
+        await player.queue.put(source)
     
     async def random_source(self, ctx):
         player = self.get_player(ctx)
@@ -307,6 +406,8 @@ class PlayerManger:
             sources = await YTDLSource.create_source(ctx, url, loop = ctx.bot.loop)
             for source in sources:
                 await player.queue.put(source)
+                await player.update_queue()
+
         return await ctx.send(embed = add_music_embed(sources))
     
     async def skip(self, guild):
@@ -329,7 +430,8 @@ class PlayerCommand(commands.Cog):
     def __init__(self, client):
         self.client = client
     
-    def cleanup(self, guild):
+    async def cleanup(self, guild):
+        await guild.voice_client.disconnect()
         del self.client.voice.players[guild.id]
     
     @slash_command(description = 'Let bot say something')

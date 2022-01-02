@@ -9,9 +9,7 @@ class Message(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        
-        if message.channel.id == dizexrt.channels['file']:
-            return await self.client.tools.extract_file(message)
+        await self.client.run_message_task(message)
     
     @message_command(guild_ids = [dizexrt.guild])
     async def indentify(self, ctx, message):
