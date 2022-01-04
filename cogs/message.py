@@ -10,5 +10,4 @@ class Message(commands.Cog):
         await self.client.run_message_task(message)
 
 def setup(client):
-
     client.add_cog(Message(client))
