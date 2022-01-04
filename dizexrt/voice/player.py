@@ -140,37 +140,12 @@ class MainPlayer:
 
         self.np = None
         self.current = asyncio.Queue(1)
-        self.channel = None
 
         self.skip_loop = False
         self._loop = False
         self._loop_all = False
 
         ctx.bot.loop.create_task(self.player_loop())
-    
-    @property
-    def music_channel(self):
-        id = dizexrt.db.get(self._guild, 'music:channel')
-        if id is not None:
-            try:
-                channel = self._guild.get_channel(id)
-            except:
-                return None
-            else:
-                return channel
-        return None
-
-    async def player(self):
-        if self.music_channel is None:return None
-        message = await self.music_channel.fetch_message(dizexrt.db.get(self._guild, 'music:player'))
-        player = dizexrt.voice.Player(self.bot, message)
-        return player
-    
-    async def update_queue(self):
-        if self.music_channel is None:return
-        _queue = await self.music_channel.fetch_message(dizexrt.db.get(self._guild, 'music:queue'))
-        queue = dizexrt.voice.Queue(self.bot, _queue)
-        await queue.update()
 
     def loop(self):
         self._loop = not self._loop
@@ -237,21 +212,12 @@ class MainPlayer:
             if self._guild.voice_client is None:
                 return await self.destroy(self._guild)
 
-            try:
-                self._guild.voice_client.play(source, after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set))
-            except Exception as e:
-                await self._channel.send(f'There was an error processing your song.\n'
-                                             f'```py\n[{e}]\n```')
-                continue
+            self._guild.voice_client.play(source, after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set))
 
             if isinstance(source, YTDLSource):
                 view = MusicButton(self.bot, source.url, timeout = source.duration+10, loop = self._loop, loop_all = self._loop_all)
-                if self.music_channel is None:
-                    self.np = await self._channel.send(embed = player_embed(source), view = view)
-                else:
-                    player = await self.player()
-                    await player.update(source, self._loop, self._loop_all)
-                    await self.update_queue()
+                self.np = await self._channel.send(embed = player_embed(source), view = view)
+
             await self.next.wait()
 
             source.cleanup()
@@ -269,11 +235,7 @@ class MainPlayer:
                 self.skip_loop = False
 
             try:
-                if self.music_channel is None:
-                    await self.np.delete()
-                else:
-                    player = await self.player()
-                    await player.empty()
+                await self.np.delete()
             except:
                 pass
             
@@ -303,15 +265,6 @@ class PlayerManger:
     
     players = {}
 
-    async def setup_channel(self, channel):
-        queue = await channel.send('queue')
-        player = await channel.send('hello')
-        dizexrt.db.set(channel.guild, 'music:player', player.id)
-        dizexrt.db.set(channel.guild, 'music:queue', queue.id)
-        await dizexrt.voice.Queue(self.client, queue).empty()
-        await dizexrt.voice.Player(self.client, player).empty()
-        self.client.add_message_task(self.on_setup, channel.guild)
-    
     @staticmethod
     async def on_setup(client, message):
 
@@ -344,18 +297,6 @@ class PlayerManger:
             await ensure_voice(ctx)
             await client.voice.play(ctx, message.content)
             return await message.delete()
-    
-    async def cleanup_channel(self):
-        for guild in self.client.guilds:
-            try:
-                channel = await guild.fetch_channel(dizexrt.db.get(guild, 'music:channel'))
-            except:
-                continue
-            player = await channel.fetch_message(dizexrt.db.get(guild, 'music:player'))
-            queue = await channel.fetch_message(dizexrt.db.get(guild, 'music:queue'))
-            await dizexrt.voice.Queue(self.client, queue).empty()
-            await dizexrt.voice.Player(self.client, player).empty()
-            self.client.add_message_task(self.on_setup, guild)
 
     def loop(self, guild):
         player = self.players[guild.id]
@@ -406,7 +347,6 @@ class PlayerManger:
             sources = await YTDLSource.create_source(ctx, url, loop = ctx.bot.loop)
             for source in sources:
                 await player.queue.put(source)
-                await player.update_queue()
 
         return await ctx.send(embed = add_music_embed(sources))
     
@@ -431,8 +371,8 @@ class PlayerCommand(commands.Cog):
         self.client = client
     
     async def cleanup(self, guild):
-        await guild.voice_client.disconnect()
         del self.client.voice.players[guild.id]
+        await guild.voice_client.disconnect()
     
     @slash_command(description = 'Let bot say something')
     async def random(self, ctx):

@@ -1,4 +1,4 @@
-import discord
+mport discord
 import dizexrt
 from discord.ext import commands
 from discord.commands import Option, SlashCommandGroup
