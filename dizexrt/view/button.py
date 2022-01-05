@@ -5,38 +5,27 @@ class UrlButton(discord.ui.View):
         super().__init__(timeout = None)
         self.add_item(discord.ui.Button(label="link", url=url))
 
-class EmbedClose(discord.ui.View):
-    def __init__(self):
+class Queue(discord.ui.View):
+    def __init__(self, client):
         super().__init__(timeout = None)
+        self.client = client
     
-    @discord.ui.button(label = 'close', custom_id = 'embed:close', style = discord.ButtonStyle.danger)
+    @discord.ui.button(label = 'close', custom_id = 'queue:close', style = discord.ButtonStyle.danger)
     async def close(self, button, interaction:discord.Interaction):
         if interaction.user.voice is not None and interaction.user.voice.channel == interaction.guild.voice_client.channel:
             return await interaction.message.delete()
         return await interaction.response.send_message("You do not have permission to do this.", ephemeral=True)
-
-class StopSourceButton(discord.ui.View):
-
-    def __init__(self, client):
-        super().__init__(timeout = None)
-        self.client = client
-
-    @discord.ui.button(label = 'stop', custom_id = 'source:stop', style = discord.ButtonStyle.danger)
-    async def stop_music(self, button, interaction:discord.Interaction):
-
-        if interaction.user.voice is None:
-            return await interaction.response.send_message("You have to join voice channel first.", ephemeral=True)
-        
-        if interaction.guild.voice_client is None:
-            return await interaction.response.send_message("Bot is not in voice channel now.", ephemeral=True)
-
-        if interaction.user.voice.channel != interaction.guild.voice_client.channel:
-            return await interaction.response.send_message("You have to join bot's voice channel first.", ephemeral=True)
-        
-        if interaction.user.voice.channel == interaction.guild.voice_client.channel:
-            await self.client.voice.skip(interaction.guild)
-            await interaction.response.send_message(f"`{interaction.user.display_name}` has stopped sound from bot.")
-            await interaction.message.edit(view = None)
+    
+    @discord.ui.button(label = 'edit', custom_id = 'queue:edit', style = discord.ButtonStyle.success)
+    async def edit(self, button, interaction:discord.Interaction):
+        if interaction.user.voice is not None and interaction.user.voice.channel == interaction.guild.voice_client.channel:
+            queue = self.client.voice.get_queue(interaction.guild)
+            for i in range(len(queue)):
+                fmt = f'```\n{i+1} {queue[i].title}\n```'
+                message = await interaction.channel.send(fmt)
+                await message.add_reaction('✖')
+            return
+        return await interaction.response.send_message("You do not have permission to do this.", ephemeral=True)
 
 class MusicButton(discord.ui.View):
     def __init__(self, client, url, *, timeout = None, loop:bool = False, loop_all:bool = False, close = False):
@@ -148,4 +137,5 @@ class MusicButton(discord.ui.View):
             fmt += '\n```'
             embed = discord.Embed(title=f'Upcoming - Next {len(queue)}', description=fmt, colour = discord.Colour.blue())
             embed.set_author(name = 'Queue')
-            await interaction.response.send_message(embed = embed, view = EmbedClose())
+            
+            await interaction.response.send_message(embed = embed, view = Queue(self.client))
