@@ -14,6 +14,7 @@ typing-extensions = "^4.0.1"
 py-cord = "^1.7.3"
 python-dotenv = "^0.19.2"
 youtube_dl = "^2021.12.17"
+lavalink = "^3.1.5"
 
 [tool.poetry.dev-dependencies]
 

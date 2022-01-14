@@ -1,9 +1,5 @@
 import asyncio
 import itertools
-from typing import Union
-from collections import deque
-
-from .source import YTInfo, LocalInfo
 
 class MusicQueue(asyncio.Queue):
 
@@ -35,18 +31,16 @@ class MusicQueue(asyncio.Queue):
         if len(queue) == 0:return None
         return queue
 
-    async def remove(self, source:Union[YTInfo, LocalInfo]):
-        for _ in self.qsize():
+    async def delete(self, *index:int):
+        for _ in range(self.qsize()):
             _source = self.get_nowait()
-            if source == _source:
+            if _ in index:
                 continue
             self.put_nowait(_source)
-    
-    async def pop(self, index:int):
-        q = list(self._queue)
-        item = q.pop(index)
-        self._queue = deque(q)
-        return item
+
+    async def cleanup(self):
+        for _ in range(self.qsize()):
+            self.get_nowait()
 
     async def put(self, *sources):
         for item in sources:

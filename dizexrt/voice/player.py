@@ -4,8 +4,8 @@ from async_timeout import timeout
 import discord
 from discord.ext import commands
 from discord.commands import slash_command, Option
-from dizexrt.view import MusicButton
 
+from ..view import MusicView
 from .source import YTDLSource, LocalSource, YTExtractInfo
 from .queue import MusicQueue
 
@@ -72,7 +72,7 @@ class MainPlayer:
             self._guild.voice_client.play(source, after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set))
 
             if isinstance(source, YTDLSource):
-                view = MusicButton(self.bot, source.url, timeout = source.duration+10, loop = self.queue.get_loop(), loop_all = self.queue.get_loop_all())
+                view = MusicView(self.bot, source.url, timeout = source.duration+10, loop = self.queue.get_loop(), loop_all = self.queue.get_loop_all())
                 self.np = await self._channel.send(embed = player_embed(source), view = view)
 
             await self.next.wait()
@@ -145,12 +145,10 @@ class PlayerManger:
     
     async def play(self, ctx, url):
         player = self.get_player(ctx)
-        async with ctx.typing():
-            source = await YTDLSource.create_source(ctx, url, loop = ctx.bot.loop)
-            await player.queue.put(source.first)
-            if source.is_playlist():
-                await player.queue.put(*source.no_first)
-
+        source = await YTDLSource.create_source(ctx, url, loop = ctx.bot.loop)
+        await player.queue.put(source.first)
+        if source.is_playlist():
+            await player.queue.put(*source.no_first)
         return await ctx.send(embed = add_music_embed(source))
     
     async def skip(self, guild):
@@ -168,6 +166,30 @@ class PlayerManger:
             await guild.voice_client.disconnect()
         except:
             pass
+
+    async def clear_queue(self, guild):
+        player = self.players[guild.id]
+        await player.queue.cleanup()
+
+    async def edit_queue(self, channel):
+        player = self.players[channel.guild.id]
+        await channel.send('Input number of music that you want to delete\n```example : 1 2 3 5 17\n```')
+        try:
+            message = await self.client.wait_for('message', timeout = 30)
+        except:
+            return
+        await player.queue.delete(*[int(i) for i in message.content.split(' ') if i.isnumeric()])
+    
+    def fqueue(self, guild) -> discord.Embed:
+        player = self.players[guild.id]
+        queue = player.queue.items
+        fmt = "```\n"
+        for i in range(len(queue)):
+            fmt += f'{i+1} {queue[i].title}\n'
+        fmt += '\n```'
+        embed = discord.Embed(title=f'Upcoming - Next {len(queue)}', description=fmt, colour = discord.Colour.blue())
+        embed.set_author(name = 'Queue')
+        return embed
 
 class PlayerCommand(commands.Cog):
     def __init__(self, client):
@@ -191,9 +213,10 @@ class PlayerCommand(commands.Cog):
     play_option = Option(str, 'Enter keywords or url of music')
     @slash_command(description = 'Play music from Youtube')
     async def play(self, ctx, query:play_option):
-        await ctx.respond('Adding song to queue')
-        await self.client.voice.play(ctx, query)
-    
+        async with ctx.typing():
+            await ctx.respond('Adding song to queue')
+            await self.client.voice.play(ctx, query)
+        
     tts_option = Option(str, 'Enter text to speak')
     @slash_command(description = 'Let bot say something')
     async def tts(self, ctx, message:tts_option):
@@ -261,7 +284,7 @@ class PlayerCommand(commands.Cog):
             await ctx.respond("Bot is already in voice channel with other.")
             raise commands.CommandError("Author is not in client channel")
 
-def add_music_embed(source:YTExtractInfo):
+def add_music_embed(source:YTExtractInfo) -> discord.Embed:
     if source.is_playlist():
         title = "Added Songs To Queue"
         description = f"`{source.count}` songs from playlist : `{source.playlist_title}`"

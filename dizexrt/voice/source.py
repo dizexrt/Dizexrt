@@ -170,16 +170,16 @@ class YTExtractInfo:
         return self._source[0]['playlist_title'] if 'entries' in self.source else None
 
     def is_playlist(self):
-        return self._playlist
+        if self.playlist_title is None:
+            return False
+        return True
 
     def _extract(self):
         sources = []
         if 'entries' in self.source:
-            self._playlist = True
             for data in self.source['entries']:
                 sources.append(data)
         else:
-            self._playlist = False
             sources.append(self.source)
 
         return sources
