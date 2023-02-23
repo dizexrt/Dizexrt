@@ -293,7 +293,6 @@ class Status(Enum):
     def __str__(self):
         return self.value
 
-
 class DefaultAvatar(Enum):
     blurple = 0
     grey = 1

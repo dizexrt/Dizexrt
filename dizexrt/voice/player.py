@@ -247,11 +247,6 @@ class MainPlayer:
             await self.np.delete()
         except:
             pass
-
-        try:
-            await self.update_queue()
-        except:
-            pass
         
         try:
             self.bot.loop.create_task(self._cog.cleanup(guild))
@@ -264,39 +259,6 @@ class PlayerManger:
         self.client = client
     
     players = {}
-
-    @staticmethod
-    async def on_setup(client, message):
-
-        async def ensure_voice(ctx):
-
-            if ctx.author.voice is None:
-                await ctx.send("You are not connected to a voice channel.")
-                raise commands.CommandError("Author voice is none")
-                return
-
-            if ctx.voice_client is None:
-                return await ctx.author.voice.channel.connect()
-            
-            if len(ctx.voice_client.channel.members) == 1:
-                return await ctx.voice_client.move_to(ctx.author.voice.channel)
-            
-            if ctx.voice_client.channel != ctx.author.voice.channel:
-                await ctx.send("Bot is already in voice channel with other.")
-                raise commands.CommandError("Author is not in client channel")
-                return
-        
-        try:
-            music_channel = await message.guild.fetch_channel(dizexrt.db.get(message.guild, 'music:channel'))
-        except:
-            music_channel = None
-        
-        if message.channel == music_channel:
-            if message.author.bot:return await message.edit(delete_after = 3)
-            ctx = await client.get_context(message)
-            await ensure_voice(ctx)
-            await client.voice.play(ctx, message.content)
-            return await message.delete()
 
     def loop(self, guild):
         player = self.players[guild.id]

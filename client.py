@@ -39,7 +39,7 @@ class MyClient(commands.Bot):
     
     async def on_ready(self):
         print (f'loged in as {self.user.name}')
-        await self.change_presence(activity = discord.Game('ใ จ เ ก เ ร'), status = discord.Status.idle)
+        await self.change_presence(activity = discord.Activity(type = discord.ActivityType.listening, name = "Your hearth"), status = discord.Status.idle)
 
     async def get_context(self, message, *, cls=MyContext):
         return await super().get_context(message, cls=cls)
